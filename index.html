@@ -1,121 +1,277 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Indigo Remove BG</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Indigo Auto Cut (GrabCut)</title>
+<link rel="icon" href="data:," />
 <style>
-    body {
-        background-color: #1a1b2e;
-        color: white;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        padding: 20px;
-    }
-    h1 {
-        color: #8faaff;
-    }
-    .upload-box {
-        background: #26284a;
-        border: 2px dashed #8faaff;
-        padding: 20px;
-        border-radius: 12px;
-        margin: 20px auto;
-        width: 90%;
-        max-width: 400px;
-        cursor: pointer;
-    }
-    input[type="file"] {
-        display: none;
-    }
-    button {
-        background: #8faaff;
-        color: #1a1b2e;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 8px;
-        margin-top: 15px;
-        cursor: pointer;
-        font-size: 16px;
-    }
-    button:hover {
-        background: #aabaff;
-    }
-    canvas {
-        margin-top: 20px;
-        max-width: 100%;
-        border-radius: 12px;
-    }
+  :root{
+    --bg:#0f1530; --card:#171a37; --accent:#7ea8ff; --muted:#bfc9ff;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--muted);font-family:Inter,Arial,Helvetica,sans-serif}
+  .wrap{max-width:980px;margin:18px auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+  header{display:flex;align-items:center;gap:12px;justify-content:space-between}
+  h1{color:var(--accent);margin:0;font-size:20px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{background:linear-gradient(180deg,var(--accent),#9fc0ff);color:#071028;border:none;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,0.5)}
+  #stage{display:flex;gap:12px;flex-wrap:wrap}
+  .preview{flex:1;min-width:260px;display:flex;flex-direction:column;align-items:center;gap:8px}
+  canvas{max-width:100%;border-radius:12px;background:#fff}
+  .side{width:260px;min-width:220px}
+  label.upload{display:inline-block;padding:10px 14px;border-radius:10px;border:2px dashed rgba(126,168,255,0.25);cursor:pointer;color:var(--muted);background:transparent}
+  .small{font-size:13px;color:#bfc9ff}
+  .note{font-size:13px;color:#9da8d6}
+  footer{font-size:12px;color:#8f9ac3;margin-top:6px;text-align:center}
+  @media(max-width:720px){
+    .wrap{padding:12px}
+    .side{width:100%}
+    #stage{flex-direction:column}
+  }
 </style>
 </head>
 <body>
-<h1>Indigo Remove BG</h1>
-<label class="upload-box">
-    <strong>Нажми или перетащи картинку сюда</strong>
-    <input type="file" id="fileInput" accept="image/*">
-</label>
-<div>
-    <button id="bgWhite">Белый фон</button>
-    <button id="bgTransparent">Прозрачный фон</button>
+<div class="wrap">
+  <header>
+    <h1>Indigo Auto Cut</h1>
+    <div class="small">Автовырез (GrabCut) — объект в центре</div>
+  </header>
+
+  <div class="card controls">
+    <label class="upload">
+      Нажми или перетащи фото
+      <input id="file" type="file" accept="image/*" style="display:none">
+    </label>
+    <button class="btn ghost" id="runBtn">Запустить авто-вырез</button>
+    <button class="btn ghost" id="rectShrink">Уменьшить рамку</button>
+    <button class="btn ghost" id="rectGrow">Увеличить рамку</button>
+    <button class="btn" id="downloadBtn" style="pointer-events:none;opacity:0.6">Скачать PNG</button>
+    <button class="btn ghost" id="bgWhiteBtn">Показать на белом</button>
+    <button class="btn ghost" id="bgTransparentBtn">Показать прозрачный</button>
+    <div style="margin-left:auto" class="note">Работает локально в браузере (OpenCV.js)</div>
+  </div>
+
+  <div id="stage">
+    <div class="preview card">
+      <canvas id="srcCanvas"></canvas>
+      <div class="small">Исходное изображение — рамка показывает область GrabCut (можно увеличить/уменьшить)</div>
+    </div>
+
+    <div class="side card">
+      <canvas id="outCanvas" width="240" height="160"></canvas>
+      <div style="margin-top:8px" class="small">Результат (предпросмотр)</div>
+      <div style="margin-top:10px" class="small">Подсказки:</div>
+      <ul class="small">
+        <li>Загрузите фото — затем нажмите <b>Запустить авто-вырез</b>.</li>
+        <li>Если вырез не идеален — уменьшите рамку, чтобы захватить только объект.</li>
+        <li>Нажмите <b>Скачать PNG</b> для сохранения с прозрачным фоном.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card small">Загрузка OpenCV.js... (подождите)</div>
+  <footer>Если нужно — могу встроить ручную доработку кистью (убрать/добавить области).</footer>
 </div>
-<canvas id="canvas"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/@xenova/transformers@2.9.1"></script>
+<!-- OpenCV.js (используем стабильную ветку 3.4; можно заменить на другую) -->
+<script async src="https://docs.opencv.org/3.4.0/opencv.js"></script>
+
 <script>
-const fileInput = document.getElementById('fileInput');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-let originalImage = null;
-let mask = null;
+/*
+  Принцип:
+  - Загружаем картинку в srcCanvas.
+  - Определяем центральный rect (по умолчанию 70% ширины/высоты).
+  - Запускаем cv.grabCut с init с rect.
+  - Получаем маску, создаём изображение с прозрачным фоном.
+*/
 
-async function loadModel() {
-    window.model = await window.transformers.pipeline('image-segmentation', 'Xenova/deeplabv3_resnet50');
-}
-loadModel();
+let fileInput = document.getElementById('file');
+let srcCanvas = document.getElementById('srcCanvas');
+let outCanvas = document.getElementById('outCanvas');
+let runBtn = document.getElementById('runBtn');
+let downloadBtn = document.getElementById('downloadBtn');
+let rectGrow = document.getElementById('rectGrow');
+let rectShrink = document.getElementById('rectShrink');
+let bgWhiteBtn = document.getElementById('bgWhiteBtn');
+let bgTransparentBtn = document.getElementById('bgTransparentBtn');
 
-fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+let srcCtx = srcCanvas.getContext('2d');
+let outCtx = outCanvas.getContext('2d');
 
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    await img.decode();
+let img = new Image();
+let imgLoaded = false;
+let rectFactor = 0.70; // portion of image to include as rectangle
+let latestResultBlobUrl = null;
 
-    originalImage = img;
-    canvas.width = img.width;
-    canvas.height = img.height;
-    
-    ctx.drawImage(img, 0, 0);
-
-    const result = await window.model(img);
-    mask = result[0].mask; // это маска объекта
-
-    applyMask('white');
+fileInput.addEventListener('change', (e)=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  const url = URL.createObjectURL(f);
+  img = new Image();
+  img.onload = ()=>{
+    URL.revokeObjectURL(url);
+    fitAndDrawImage();
+    imgLoaded = true;
+    document.querySelector('.card.small').innerText = 'OpenCV.js загружен? ' + (window.cv ? 'Да' : 'Нет — подождите...');
+  };
+  img.src = url;
 });
 
-function applyMask(bgColor) {
-    if (!originalImage || !mask) return;
+function fitAndDrawImage(){
+  // ограничим размер для плавности, но сохраним точность
+  const maxDim = Math.min(window.innerWidth - 100, 1280);
+  let w = img.naturalWidth, h = img.naturalHeight;
+  const scale = Math.min(1, maxDim / Math.max(w,h));
+  w = Math.round(w * scale); h = Math.round(h * scale);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(mask, 0, 0, canvas.width, canvas.height);
-    const maskData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  srcCanvas.width = w; srcCanvas.height = h;
+  srcCtx.clearRect(0,0,w,h);
+  srcCtx.drawImage(img, 0, 0, w, h);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = bgColor === 'transparent' ? 'rgba(0,0,0,0)' : bgColor;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
-
-    ctx.globalCompositeOperation = 'destination-in';
-    ctx.putImageData(maskData, 0, 0);
-
-    ctx.globalCompositeOperation = 'source-over';
+  // draw rectangle overlay
+  drawRectOverlay();
 }
 
-document.getElementById('bgWhite').onclick = () => applyMask('white');
-document.getElementById('bgTransparent').onclick = () => applyMask('transparent');
+function drawRectOverlay(){
+  const w = srcCanvas.width, h = srcCanvas.height;
+  const rw = Math.round(w * rectFactor), rh = Math.round(h * rectFactor);
+  const rx = Math.round((w - rw) / 2), ry = Math.round((h - rh) / 2);
+
+  // redraw image then overlay translucent rectangle border
+  srcCtx.drawImage(img, 0, 0, w, h);
+  srcCtx.save();
+  srcCtx.strokeStyle = '#7ea8ff';
+  srcCtx.lineWidth = 3;
+  srcCtx.setLineDash([8,6]);
+  srcCtx.strokeRect(rx+1, ry+1, rw-2, rh-2);
+  srcCtx.restore();
+}
+
+rectGrow.addEventListener('click', ()=>{ rectFactor = Math.min(0.98, rectFactor + 0.06); drawRectOverlay(); });
+rectShrink.addEventListener('click', ()=>{ rectFactor = Math.max(0.2, rectFactor - 0.06); drawRectOverlay(); });
+
+runBtn.addEventListener('click', async ()=>{
+  if(!imgLoaded) { alert('Сначала загрузите картинку'); return; }
+  if(!window.cv || !cv.imread){ alert('OpenCV.js ещё не загрузился — подождите пару секунд и повторите'); return; }
+  await runGrabCut();
+});
+
+bgWhiteBtn.addEventListener('click', ()=>{ showResultOnBackground('white'); });
+bgTransparentBtn.addEventListener('click', ()=>{ showResultOnBackground('transparent'); });
+
+downloadBtn.addEventListener('click', ()=>{
+  if(!latestResultBlobUrl){ alert('Сначала получите результат'); return; }
+  const a = document.createElement('a');
+  a.href = latestResultBlobUrl;
+  a.download = 'cut_result.png';
+  a.click();
+});
+
+async function runGrabCut(){
+  try {
+    const w = srcCanvas.width, h = srcCanvas.height;
+    // create mats
+    let src = cv.imread(srcCanvas);
+    let mask = new cv.Mat();
+    // mask should be 8UC1 and initialized with GC_BGD
+    mask.create(src.rows, src.cols, cv.CV_8UC1);
+    mask.setTo(new cv.Scalar(cv.GC_BGD));
+
+    // setup rect
+    const rw = Math.round(w * rectFactor), rh = Math.round(h * rectFactor);
+    const rx = Math.round((w - rw) / 2), ry = Math.round((h - rh) / 2);
+    const rect = new cv.Rect(rx, ry, rw, rh);
+
+    // bgd/fgd models (must be CV_64F, size 1x65)
+    let bgdModel = new cv.Mat();
+    let fgdModel = new cv.Mat();
+    // run grabCut (5 iterations)
+    cv.grabCut(src, mask, rect, bgdModel, fgdModel, 5, cv.GC_INIT_WITH_RECT);
+
+    // build output mask: pixels that are likely/definitely foreground -> 255
+    let outMask = new cv.Mat();
+    outMask.create(mask.rows, mask.cols, cv.CV_8UC1);
+    for(let i=0;i<mask.rows;i++){
+      for(let j=0;j<mask.cols;j++){
+        const val = mask.ucharPtr(i,j)[0];
+        // cv.GC_FGD==1, cv.GC_PR_FGD==3
+        if(val === cv.GC_FGD || val === cv.GC_PR_FGD){
+          outMask.ucharPtr(i,j)[0] = 255;
+        } else {
+          outMask.ucharPtr(i,j)[0] = 0;
+        }
+      }
+    }
+
+    // optional: apply small blur to smooth edges and threshold
+    let ksize = new cv.Size(3,3);
+    cv.GaussianBlur(outMask, outMask, ksize, 0);
+
+    // create RGBA output
+    let out = new cv.Mat();
+    cv.cvtColor(src, out, cv.COLOR_RGBA2RGB, 0); // ensure 3 channels
+    let rgba = new cv.Mat();
+    cv.cvtColor(out, rgba, cv.COLOR_RGB2RGBA);
+
+    // set alpha channel from outMask
+    for(let i=0;i<rgba.rows;i++){
+      for(let j=0;j<rgba.cols;j++){
+        const aVal = outMask.ucharPtr(i,j)[0];
+        rgba.ucharPtr(i,j)[3] = aVal; // alpha
+      }
+    }
+
+    // show preview on outCanvas (transparent)
+    cv.imshow(outCanvas, rgba);
+
+    // create blob for download
+    const blob = await new Promise(resolve=>{
+      outCanvas.toBlob(b => resolve(b), 'image/png');
+    });
+    if(latestResultBlobUrl) URL.revokeObjectURL(latestResultBlobUrl);
+    latestResultBlobUrl = URL.createObjectURL(blob);
+    downloadBtn.style.pointerEvents='auto'; downloadBtn.style.opacity=1;
+
+    // cleanup
+    src.delete(); mask.delete(); bgdModel.delete(); fgdModel.delete(); outMask.delete(); out.delete(); rgba.delete();
+  } catch(err){
+    console.error(err);
+    alert('Ошибка при обработке: ' + err.message);
+  }
+}
+
+function showResultOnBackground(mode){
+  if(!latestResultBlobUrl){ alert('Сначала получите результат'); return; }
+  const imgOut = new Image();
+  imgOut.onload = ()=>{
+    outCanvas.width = imgOut.width; outCanvas.height = imgOut.height;
+    outCtx.clearRect(0,0,outCanvas.width,outCanvas.height);
+    if(mode === 'white'){
+      outCtx.fillStyle = '#ffffff';
+      outCtx.fillRect(0,0,outCanvas.width,outCanvas.height);
+      outCtx.drawImage(imgOut, 0, 0);
+    } else {
+      // transparent: draw directly (canvas already contains rgba if previously shown),
+      // but to be sure, draw image; PNG has alpha.
+      outCtx.clearRect(0,0,outCanvas.width,outCanvas.height);
+      outCtx.drawImage(imgOut, 0, 0);
+    }
+  };
+  imgOut.src = latestResultBlobUrl;
+}
+
+// Wait for OpenCV to load
+(function waitForCV(){
+  const statusEl = document.querySelector('.card.small');
+  if(window.cv && cv.Mat){
+    statusEl.innerText = 'OpenCV.js загружен — можно загружать фото';
+    return;
+  }
+  statusEl.innerText = 'Загрузка OpenCV.js...';
+  setTimeout(waitForCV, 300);
+})();
 </script>
 </body>
 </html>
